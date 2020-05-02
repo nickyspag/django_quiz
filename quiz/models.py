@@ -4,12 +4,10 @@ import json
 
 from django.db import models
 from django.core.exceptions import ValidationError, ImproperlyConfigured
-from django.core.validators import (
-    MaxValueValidator, validate_comma_separated_integer_list,
-)
-from django.utils.translation import ugettext_lazy as _
+from django.core.validators import MaxValueValidator, validate_comma_separated_integer_list
+from django.utils.translation import ugettext as _
 from django.utils.timezone import now
-from django.utils.encoding import python_2_unicode_compatible
+from six import python_2_unicode_compatible
 from django.conf import settings
 
 from model_utils.managers import InheritanceManager
@@ -51,8 +49,8 @@ class SubCategory(models.Model):
         max_length=250, blank=True, null=True)
 
     category = models.ForeignKey(
-        Category, null=True, blank=True,
-        verbose_name=_("Category"), on_delete=models.CASCADE)
+        Category, models.CASCADE, null=True, blank=True,
+        verbose_name=_("Category"))
 
     objects = CategoryManager()
 
@@ -81,8 +79,8 @@ class Quiz(models.Model):
         verbose_name=_("user friendly url"))
 
     category = models.ForeignKey(
-        Category, null=True, blank=True,
-        verbose_name=_("Category"), on_delete=models.CASCADE)
+        Category, models.CASCADE, null=True, blank=True,
+        verbose_name=_("Category"))
 
     random_order = models.BooleanField(
         blank=False, default=False,
@@ -117,7 +115,6 @@ class Quiz(models.Model):
 
     pass_mark = models.SmallIntegerField(
         blank=True, default=0,
-        verbose_name=_("Pass Mark"),
         help_text=_("Percentage required to pass exam."),
         validators=[MaxValueValidator(100)])
 
@@ -192,11 +189,10 @@ class Progress(models.Model):
     Data stored in csv using the format:
         category, score, possible, category, score, possible, ...
     """
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, verbose_name=_("User"), on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, models.CASCADE, verbose_name=_("User"))
 
-    score = models.CharField(max_length=1024,
-                             verbose_name=_("Score"),
-                             validators=[validate_comma_separated_integer_list])
+    score = models.CharField(max_length=1024, verbose_name=_("Score"), validators=[validate_comma_separated_integer_list])
 
     objects = ProgressManager()
 
@@ -315,7 +311,7 @@ class SittingManager(models.Manager):
             question_set = quiz.question_set.all() \
                                             .select_subclasses()
 
-        question_set = [item.id for item in question_set]
+        question_set = question_set.values_list('id', flat=True)
 
         if len(question_set) == 0:
             raise ImproperlyConfigured('Question set of the quiz is empty. '
@@ -340,7 +336,7 @@ class SittingManager(models.Manager):
         if quiz.single_attempt is True and self.filter(user=user,
                                                        quiz=quiz,
                                                        complete=True)\
-                                               .exists():
+                .exists():
             return False
 
         try:
@@ -371,25 +367,19 @@ class Sitting(models.Model):
     with the answer the user gave.
     """
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name=_("User"), on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             models.CASCADE, verbose_name=_("User"))
 
-    quiz = models.ForeignKey(Quiz, verbose_name=_("Quiz"), on_delete=models.CASCADE)
+    quiz = models.ForeignKey(Quiz, models.CASCADE, verbose_name=_("Quiz"))
 
     question_order = models.CharField(
-        max_length=1024,
-        verbose_name=_("Question Order"),
-        validators=[validate_comma_separated_integer_list])
+        max_length=1024, validators=[validate_comma_separated_integer_list], verbose_name=_("Question Order"))
 
     question_list = models.CharField(
-        max_length=1024,
-        verbose_name=_("Question List"),
-        validators=[validate_comma_separated_integer_list])
+        max_length=1024, validators=[validate_comma_separated_integer_list], verbose_name=_("Question List"))
 
     incorrect_questions = models.CharField(
-        max_length=1024,
-        blank=True,
-        verbose_name=_("Incorrect questions"),
-        validators=[validate_comma_separated_integer_list])
+        max_length=1024, blank=True, validators=[validate_comma_separated_integer_list], verbose_name=_("Incorrect questions"))
 
     current_score = models.IntegerField(verbose_name=_("Current Score"))
 
@@ -553,16 +543,16 @@ class Question(models.Model):
                                   blank=True)
 
     category = models.ForeignKey(Category,
+                                 models.CASCADE,
                                  verbose_name=_("Category"),
                                  blank=True,
-                                 null=True,
-                                 on_delete=models.CASCADE)
+                                 null=True)
 
     sub_category = models.ForeignKey(SubCategory,
+                                     models.CASCADE,
                                      verbose_name=_("Sub-Category"),
                                      blank=True,
-                                     null=True,
-                                     on_delete=models.CASCADE)
+                                     null=True)
 
     figure = models.ImageField(upload_to='uploads/%Y/%m/%d',
                                blank=True,
